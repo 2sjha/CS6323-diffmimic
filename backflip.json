@@ -2,7 +2,7 @@
   "num_envs": 300,
   "num_eval_envs": 32,
   "lr": 0.0003,
-  "max_it": 300,
+  "max_it": 50,
   "max_grad_norm": 0.4,
   "seed": 0,
   "demo_replay_mode": "threshold",
@@ -16,5 +16,5 @@
   "rot_weight": 0.5,
   "vel_weight": 0.01,
   "ang_weight": 0.01,
-  "ref": "ref_backflip_fps_30_20s.npy"
+  "ref": "backflip_fps_30_20s.npy"
 }

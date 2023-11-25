@@ -16,12 +16,12 @@ import diffmimic.brax_lib.agent_diffmimic as ag_dm
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Register Brax enviroments
+envs.register_environment('mimic', Mimic)
+envs.register_environment('mimic_train', MimicTrain)
+
 def mimic(config_json):
     "Read provided config and set up Mimic training"
-
-    # Register Brax enviroments
-    envs.register_environment('mimic', Mimic)
-    envs.register_environment('mimic_train', MimicTrain)
 
     mm_config = defaultdict()
     with open(config_json, 'r', encoding='utf-8') as config_json_f:
@@ -70,7 +70,8 @@ def mimic(config_json):
         ang_weight=mm_config['ang_weight']
     )
 
-    log_writer = metrics.Writer('logs/')
+    log_dir = "logs/"
+    log_writer = metrics.Writer(log_dir)
     ag_dm.train(
         seed=mm_config['seed'],
         environment=mimic_train_env,
@@ -85,7 +86,7 @@ def mimic(config_json):
         network_factory=functools.partial(
             apg_networks.make_apg_networks, hidden_layer_sizes=(512, 256)),
         normalize_observations=mm_config['normalize_observations'],
-        save_dir='logs/',
+        save_dir=log_dir,
         progress_fn=log_writer.write_scalars,
         use_linear_scheduler=mm_config['use_lr_scheduler'],
         truncation_length=mm_config['truncation_length'],
@@ -93,9 +94,9 @@ def mimic(config_json):
 
 if __name__:
     if len(sys.argv) > 2:
-        print('Usage: python mimic.py <config.json>', file=sys.stderr)
+        print("Usage: python main.py <config.json>", file=sys.stderr)
     elif len(sys.argv) == 1:
-        print('Running default config.json')
-        mimic('config.json')
+        print("Running default config: backflip.json")
+        mimic('backflip.json')
     else:
         mimic(sys.argv[1])

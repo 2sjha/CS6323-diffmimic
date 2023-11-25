@@ -93,6 +93,8 @@ def train(environment: envs.Env,
 #       'devices to be used count: %d', jax.device_count(), process_count,
 #       process_id, local_device_count, local_devices_to_use)
 #   device_count = local_devices_to_use * process_count
+  
+  logging.info("Diffmimic agent is now beginning training ...")
 
   if truncation_length is not None:
     assert truncation_length > 0
@@ -244,10 +246,13 @@ def train(environment: envs.Env,
 
   # Run initial eval
   if jax.process_index() == 0 and num_evals > 1:
+    # metrics, _ = evaluator.run_evaluation(
+    #     _unpmap((training_state.normalizer_params, training_state.policy_params)),
+    #     training_metrics={})
     metrics, _ = evaluator.run_evaluation(
-        _unpmap(
-            (training_state.normalizer_params, training_state.policy_params)),
-        training_metrics={})
+      jax.tree_util.tree_map(lambda x: x[0], (training_state.normalizer_params, training_state.policy_params)),
+      training_metrics={}
+    )
     best_pose_error = min(metrics['eval/episode_pose_error'], best_pose_error)
     metrics['eval/best_pose_error'] = best_pose_error
     progress_fn(0, metrics)

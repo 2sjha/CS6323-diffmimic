@@ -65,7 +65,6 @@ def generate_unroll(
   return final_state, qp_list
 
 
-# TODO: Consider moving this to its own file.
 class Evaluator:
   """Class to run evaluations."""
 

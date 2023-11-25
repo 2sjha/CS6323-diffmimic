@@ -81,24 +81,26 @@ def train(environment: envs.Env,
 
   xt = time.time()
 
-  process_count = jax.process_count()
-  process_id = jax.process_index()
-  local_device_count = jax.local_device_count()
-  local_devices_to_use = local_device_count
-  if max_devices_per_host:
-    local_devices_to_use = min(local_devices_to_use, max_devices_per_host)
-  logging.info(
-      'Device count: %d, process count: %d (id %d), local device count: %d, '
-      'devices to be used count: %d', jax.device_count(), process_count,
-      process_id, local_device_count, local_devices_to_use)
-  device_count = local_devices_to_use * process_count
+#   process_count = jax.process_count()
+#   process_id = jax.process_index()
+#   local_device_count = jax.local_device_count()
+#   local_devices_to_use = local_device_count
+#   local_devices_to_use = jax.local_device_count()
+#   if max_devices_per_host:
+#     local_devices_to_use = min(local_devices_to_use, max_devices_per_host)
+#   logging.info(
+#       'Device count: %d, process count: %d (id %d), local device count: %d, '
+#       'devices to be used count: %d', jax.device_count(), process_count,
+#       process_id, local_device_count, local_devices_to_use)
+#   device_count = local_devices_to_use * process_count
 
   if truncation_length is not None:
     assert truncation_length > 0
 
   num_evals_after_init = max(num_evals - 1, 1)
 
-  assert num_envs % device_count == 0
+#   assert num_envs % device_count == 0
+  assert num_envs % (jax.process_count() * jax.local_device_count()) == 0
   env = environment
   env = wrappers.EpisodeWrapper(env, episode_length, action_repeat)
   env = wrappers.VmapWrapper(env)
@@ -112,11 +114,16 @@ def train(environment: envs.Env,
       env.action_size,
       preprocess_observations_fn=normalize)
   make_policy = apg_networks.make_inference_fn(apg_network)
-  if use_linear_scheduler:
-      lr_scheduler = optax.linear_schedule(init_value=learning_rate, end_value=1e-5, transition_steps=num_evals_after_init)
-      optimizer = optax.adam(learning_rate=lr_scheduler)
-  else:
-      optimizer = optax.adam(learning_rate=learning_rate)
+#   if use_linear_scheduler:
+#       lr_scheduler = optax.linear_schedule(init_value=learning_rate, end_value=1e-5, transition_steps=num_evals_after_init)
+#       optimizer = optax.adam(learning_rate=lr_scheduler)
+#   else:
+#       optimizer = optax.adam(learning_rate=learning_rate)
+  
+  # since the linear scheduler needs to used for backflip
+  lr_scheduler = optax.linear_schedule(init_value=learning_rate, end_value=1e-5, transition_steps=num_evals_after_init)
+  optimizer = optax.adam(learning_rate=lr_scheduler)
+
 
   def env_step(carry: Tuple[envs.State, PRNGKey], step_index: int,
                policy: types.Policy):
@@ -134,7 +141,7 @@ def train(environment: envs.Env,
   def loss(policy_params, normalizer_params, key):
     key_reset, key_scan = jax.random.split(key)
     env_state = env.reset(
-        jax.random.split(key_reset, num_envs // process_count))
+        jax.random.split(key_reset, num_envs // jax.process_count()))
     f = functools.partial(
         env_step, policy=make_policy((normalizer_params, policy_params)))
     (rewards,
@@ -202,7 +209,7 @@ def train(environment: envs.Env,
   key = jax.random.PRNGKey(seed)
   global_key, local_key = jax.random.split(key)
   del key
-  local_key = jax.random.fold_in(local_key, process_id)
+  local_key = jax.random.fold_in(local_key, jax.process_index())
   local_key, eval_key = jax.random.split(local_key)
 
   # The network key should be global, so that networks are initialized the same
@@ -217,7 +224,7 @@ def train(environment: envs.Env,
           specs.Array((env.observation_size,), jnp.float32)))
   training_state = jax.device_put_replicated(
       training_state,
-      jax.local_devices()[:local_devices_to_use])
+      jax.local_devices()[:jax.local_device_count()])
 
   eval_episode_length = episode_length if not eval_episode_length else eval_episode_length
   if not eval_environment:
@@ -236,7 +243,7 @@ def train(environment: envs.Env,
       key=eval_key)
 
   # Run initial eval
-  if process_id == 0 and num_evals > 1:
+  if jax.process_index() == 0 and num_evals > 1:
     metrics, _ = evaluator.run_evaluation(
         _unpmap(
             (training_state.normalizer_params, training_state.policy_params)),
@@ -250,11 +257,11 @@ def train(environment: envs.Env,
 
     # optimization
     epoch_key, local_key = jax.random.split(local_key)
-    epoch_keys = jax.random.split(epoch_key, local_devices_to_use)
+    epoch_keys = jax.random.split(epoch_key, jax.local_device_count())
     (training_state,
      training_metrics) = training_epoch_with_timing(training_state, epoch_keys)
 
-    if process_id == 0:
+    if jax.process_index() == 0:
       # Run evals.
       metrics, qp_list = evaluator.run_evaluation(
           _unpmap(

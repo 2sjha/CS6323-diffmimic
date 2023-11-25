@@ -68,10 +68,13 @@ def generate_unroll(
 class Evaluator:
   """Class to run evaluations."""
 
-  def __init__(self, eval_env: envs.Env,
-               eval_policy_fn: Callable[[PolicyParams],
-                                        Policy], num_eval_envs: int,
-               episode_length: int, action_repeat: int, key: PRNGKey):
+  def __init__(self,
+               eval_env: envs.Env,
+               eval_policy_fn: Callable[[PolicyParams],Policy],
+               num_eval_envs: int,
+               episode_length: int,
+               action_repeat: int,
+               key: PRNGKey):
     """Init.
 
     Args:
@@ -87,8 +90,7 @@ class Evaluator:
 
     eval_env = envs.wrappers.EvalWrapper(eval_env)
 
-    def generate_eval_unroll(policy_params: PolicyParams,
-                             key: PRNGKey) -> (envs.State, brax.QP):
+    def generate_eval_unroll(policy_params: PolicyParams, key: PRNGKey) -> (envs.State, brax.QP):
       reset_keys = jax.random.split(key, num_eval_envs)
       eval_first_state = eval_env.reset(reset_keys)
       return generate_unroll(

@@ -5,9 +5,13 @@ from brax.io import html
 import streamlit.components.v1 as components
 import streamlit as st
 from diffmimic.utils.io import deserialize_qp, serialize_qp
-from diffmimic.mimic_envs import register_mimic_env
+from diffmimic.mimic_envs.mimic import Mimic
+from diffmimic.mimic_envs.mimic_train import MimicTrain
+from diffmimic.mimic_envs.humanoid_system_config import Humanoid_System_Config
 
-register_mimic_env()
+# Register Brax enviroments
+envs.register_environment('mimic', Mimic)
+envs.register_environment('mimic_train', MimicTrain)
 
 st.title('DiffMimic - Visualization')
 with st.expander("Readme"):
@@ -22,19 +26,12 @@ def show_rollout_traj(rollout_traj, tag):
     if len(rollout_traj.shape) == 3:
         seed = st.slider(f'Random seed ({tag})', 0, rollout_traj.shape[1] - 1, 0)
         rollout_traj = rollout_traj[:, seed]
-    if rollout_traj.shape[-1] == 182:
-        system_cfg = 'humanoid'
-    elif rollout_traj.shape[-1] == 247:
-        system_cfg = 'smpl'
-    else:
-        system_cfg = 'swordshield'
 
     rollout_qp = [deserialize_qp(rollout_traj[i]) for i in range(rollout_traj.shape[0])]
     rollout_traj = serialize_qp(deserialize_qp(rollout_traj))
 
     env = envs.get_environment(
         env_name="mimic",
-        system_config=system_cfg,
         reference_traj=rollout_traj,
     )
     components.html(html.render(env.sys, rollout_qp), height=500)

@@ -5,7 +5,6 @@ def loss_l2_relpos(qp, ref_qp):
     pos, ref_pos = qp.pos[:-1], ref_qp.pos[:-1]
     relpos, ref_relpos = (pos - pos[0])[1:], (ref_pos - ref_pos[0])[1:]
     relpos_loss = (((relpos - ref_relpos) ** 2).sum(-1) ** 0.5).mean()
-    relpos_loss = relpos_loss
     return relpos_loss
 
 

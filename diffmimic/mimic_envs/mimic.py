@@ -1,18 +1,17 @@
 import brax
 from brax import jumpy as jp
 from brax.envs import env
-from .humanoid_system_config import Humanoid_System_Config
 from diffmimic.utils.io import deserialize_qp
-from .losses import *
 from diffmimic.utils.rotation6d import quaternion_to_rotation_6d
+from .losses import *
 
 
 class Mimic(env.Env):
     """Trains a humanoid to mimic reference motion."""
 
-    def __init__(self, reference_traj, obs_type='timestamp', cyc_len=None, reward_scaling=1.,
+    def __init__(self, system_config, reference_traj, obs_type='timestamp', cyc_len=None, reward_scaling=1.,
                  rot_weight=1., vel_weight=0., ang_weight=0.):
-        super().__init__(config=Humanoid_System_Config)
+        super().__init__(config=system_config)
         self.reference_qp = deserialize_qp(reference_traj)
         self.reference_len = reference_traj.shape[0]
         self.reward_scaling = reward_scaling

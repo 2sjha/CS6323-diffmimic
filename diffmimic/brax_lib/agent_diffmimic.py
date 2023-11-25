@@ -251,7 +251,7 @@ def train(environment: envs.Env,
     #     _unpmap((training_state.normalizer_params, training_state.policy_params)),
     #     training_metrics={})
     metrics, _ = evaluator.run_evaluation(
-      training_state.jax_tree_map(),
+      training_state.get_params(),
       training_metrics={}
     )
     logging.info("succesfully run the jax tree map function")

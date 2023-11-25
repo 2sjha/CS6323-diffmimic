@@ -45,7 +45,6 @@ def mimic(config_json):
 
     mimic_train_env = envs.get_environment(
         env_name="mimic_train",
-        system_config=mm_config['system_config'],
         reference_traj=ref_data,
         obs_type=mm_config['obs_type'],
         cyc_len=mm_config['cycle_len'],
@@ -63,7 +62,6 @@ def mimic(config_json):
 
     mimic_env = envs.get_environment(
         env_name="mimic",
-        system_config=mm_config['system_config'],
         reference_traj=ref_data,
         obs_type=mm_config['obs_type'],
         cyc_len=mm_config['cycle_len'],

@@ -40,9 +40,6 @@ from diffmimic.utils.io import serialize_qp
 InferenceParams = Tuple[running_statistics.NestedMeanStd, Params]
 Metrics = types.Metrics
 
-_PMAP_AXIS_NAME = 'i'
-
-
 @flax.struct.dataclass
 class TrainingState:
   """Contains training state for the learner."""
@@ -50,9 +47,12 @@ class TrainingState:
   normalizer_params: running_statistics.RunningStatisticsState
   policy_params: Params
 
+  def get_params(self):
+    return jax.tree_util.tree_map(lambda x: x[0], (self.normalizer_params, self.policy_params))
 
-def _unpmap(v):
-  return jax.tree_util.tree_map(lambda x: x[0], v)
+
+# def _unpmap(v):
+#   return jax.tree_util.tree_map(lambda x: x[0], v)
 
 
 def train(environment: envs.Env,
@@ -70,7 +70,7 @@ def train(environment: envs.Env,
           deterministic_eval: bool = False,
           network_factory: types.NetworkFactory[
               apg_networks.APGNetworks] = apg_networks.make_apg_networks,
-          progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
+            progress_fn: Callable[[int, Metrics], None] = lambda *args: None,
           eval_environment: Optional[envs.Env] = None,
           eval_episode_length: Optional[int] = None,
           save_dir: Optional[str] = None,
@@ -125,7 +125,7 @@ def train(environment: envs.Env,
   # since the linear scheduler needs to used for backflip
   lr_scheduler = optax.linear_schedule(init_value=learning_rate, end_value=1e-5, transition_steps=num_evals_after_init)
   optimizer = optax.adam(learning_rate=lr_scheduler)
-
+  logging.info("succesfully setup the lr_scheduler and optimizer")
 
   def env_step(carry: Tuple[envs.State, PRNGKey], step_index: int,
                policy: types.Policy):
@@ -152,6 +152,7 @@ def train(environment: envs.Env,
     return -jnp.mean(rewards), (rewards, obs, metrics)
 
   loss_grad = jax.grad(loss, has_aux=True)
+  logging.info("succesfully setup JAX grad with loss")
 
   def clip_by_global_norm(updates):
     g_norm = optax.global_norm(updates)
@@ -173,7 +174,7 @@ def train(environment: envs.Env,
                                         params_update)
 
     normalizer_params = running_statistics.update(
-        training_state.normalizer_params, obs, pmap_axis_name=_PMAP_AXIS_NAME)
+        training_state.normalizer_params, obs, pmap_axis_name='i')
     metrics = {
         'grad_norm': optax.global_norm(grad_raw),
         'params_norm': optax.global_norm(policy_params),
@@ -185,7 +186,7 @@ def train(environment: envs.Env,
         normalizer_params=normalizer_params,
         policy_params=policy_params), metrics
 
-  training_epoch = jax.pmap(training_epoch, axis_name=_PMAP_AXIS_NAME)
+  training_epoch = jax.pmap(training_epoch, axis_name='i')
 
   training_walltime = 0
 
@@ -224,9 +225,9 @@ def train(environment: envs.Env,
       policy_params=policy_params,
       normalizer_params=running_statistics.init_state(
           specs.Array((env.observation_size,), jnp.float32)))
-  training_state = jax.device_put_replicated(
-      training_state,
-      jax.local_devices()[:jax.local_device_count()])
+  training_state = jax.device_put_replicated(training_state,jax.local_devices()[:jax.local_device_count()])
+
+  logging.info("Training state has been initialized")
 
   eval_episode_length = episode_length if not eval_episode_length else eval_episode_length
   if not eval_environment:
@@ -250,9 +251,10 @@ def train(environment: envs.Env,
     #     _unpmap((training_state.normalizer_params, training_state.policy_params)),
     #     training_metrics={})
     metrics, _ = evaluator.run_evaluation(
-      jax.tree_util.tree_map(lambda x: x[0], (training_state.normalizer_params, training_state.policy_params)),
+      training_state.jax_tree_map(),
       training_metrics={}
     )
+    logging.info("succesfully run the jax tree map function")
     best_pose_error = min(metrics['eval/episode_pose_error'], best_pose_error)
     metrics['eval/best_pose_error'] = best_pose_error
     progress_fn(0, metrics)
@@ -269,30 +271,34 @@ def train(environment: envs.Env,
     if jax.process_index() == 0:
       # Run evals.
       metrics, qp_list = evaluator.run_evaluation(
-          _unpmap(
-              (training_state.normalizer_params, training_state.policy_params)),
-          training_metrics)
+        training_state.get_params(),
+        training_metrics
+      )
       best_pose_error = min(metrics['eval/episode_pose_error'], best_pose_error)
       metrics['eval/best_pose_error'] = best_pose_error
       progress_fn(it + 1, metrics)
-      if save_dir is not None:
-          params = _unpmap(
-              (training_state.normalizer_params, training_state.policy_params))
-          eval_traj = serialize_qp(qp_list)
-          if best_pose_error == metrics['eval/episode_pose_error']:
-            model.save_params(save_dir + '/params_best.pkl', params)
-            with open(save_dir+'/eval_traj_best.npy', 'wb') as f:
-                jnp.save(f, eval_traj)
-          if (it+1) % 10 == 0:
-            with open(save_dir+f'/eval_traj_{it+1}.npy', 'wb') as f:
-                jnp.save(f, eval_traj)
+    #   if save_dir is not None:
+    #       params = _unpmap(
+    #           (training_state.normalizer_params, training_state.policy_params))
+    #       eval_traj = serialize_qp(qp_list)
+    #       if best_pose_error == metrics['eval/episode_pose_error']:
+    #         model.save_params(save_dir + '/params_best.pkl', params)
+    #         with open(save_dir+'/eval_traj_best.npy', 'wb') as f:
+    #             jnp.save(f, eval_traj)
+    #       if (it+1) % 10 == 0:
+    #         with open(save_dir+f'/eval_traj_{it+1}.npy', 'wb') as f:
+    #             jnp.save(f, eval_traj)
+      if best_pose_error == metrics['eval/episode_pose_error']:
+        params = training_state.get_params()
+        model.save_params(save_dir + '/params_best.pkl', params)
+        with open(save_dir+'/best_pose_error_trajectory.npy', 'wb') as file:
+          jnp.save(file, serialize_qp(qp_list))
 
 
 
   # If there was no mistakes the training_state should still be identical on all
   # devices.
   pmap.assert_is_replicated(training_state)
-  params = _unpmap(
-      (training_state.normalizer_params, training_state.policy_params))
+  params = training_state.get_params()
   pmap.synchronize_hosts()
   return (make_policy, params, metrics)

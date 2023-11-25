@@ -1,7 +1,7 @@
 num_envs: 300
 num_eval_envs: 32
 lr: 0.0003
-max_it: 50 #1000
+max_it: 300 #1000
 max_grad_norm: 0.4
 seed: 0
 system_config: humanoid

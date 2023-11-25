@@ -1,4 +1,4 @@
-_SYSTEM_CONFIG_HUMANOID = """
+Humanoid_System_Config = """
 bodies {
   name: "pelvis"
   colliders {

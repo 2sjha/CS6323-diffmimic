@@ -8,9 +8,9 @@ import jax.numpy as jnp
 from brax import envs
 from brax.io import metrics
 from brax.training.agents.apg import networks as apg_networks
-from diffmimic.mimic_envs.humanoid_mimic import Mimic
-from diffmimic.mimic_envs.humanoid_mimic_train import MimicTrain
-import diffmimic.brax_lib.agent_diffmimic as dmm
+from diffmimic.mimic_envs.mimic import Mimic
+from diffmimic.mimic_envs.mimic_train import MimicTrain
+import diffmimic.brax_lib.agent_diffmimic as ag_dm
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -73,7 +73,7 @@ def mimic(config_json):
     )
 
     log_writer = metrics.Writer('logs/')
-    dmm.train(
+    ag_dm.train(
         seed=mm_config['seed'],
         environment=mimic_train_env,
         eval_environment=mimic_env,

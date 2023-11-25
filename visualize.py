@@ -33,7 +33,7 @@ def show_rollout_traj(rollout_traj, tag):
     rollout_traj = serialize_qp(deserialize_qp(rollout_traj))
 
     env = envs.get_environment(
-        env_name="humanoid_mimic",
+        env_name="mimic",
         system_config=system_cfg,
         reference_traj=rollout_traj,
     )

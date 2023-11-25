@@ -33,7 +33,7 @@ class MimicTrain(Mimic):
         return state
 
     def step(self, state: env.State, action: jp.ndarray) -> env.State:
-        state = super(HumanoidMimicTrain, self).step(state, action)
+        state = super(MimicTrain, self).step(state, action)
         if self.early_termination:
             state = state.replace(done=state.metrics['fall'])
         if self.demo_replay_mode != 'none':

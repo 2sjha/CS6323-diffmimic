@@ -1,87 +1,103 @@
 import functools
+import logging
+import json
+import sys
+from collections import defaultdict
 import numpy as np
 import jax.numpy as jnp
-from absl import flags, app
-import yaml
 from brax import envs
 from brax.io import metrics
 from brax.training.agents.apg import networks as apg_networks
-from diffmimic.utils import AttrDict
-from diffmimic.mimic_envs import register_mimic_env
+from diffmimic.mimic_envs.humanoid_mimic import Mimic
+from diffmimic.mimic_envs.humanoid_mimic_train import MimicTrain
 import diffmimic.brax_lib.agent_diffmimic as dmm
 
-register_mimic_env()
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-FLAGS = flags.FLAGS
-flags.DEFINE_string('config', 'configs/AMP/backflip.yaml', help='Experiment configuration.')
+def mimic(config_json):
+    "Read provided config and set up Mimic training"
 
+    # Register Brax enviroments
+    envs.register_environment('mimic', Mimic)
+    envs.register_environment('mimic_train', MimicTrain)
 
-def main(argv):
-    with open(FLAGS.config, 'r') as f:
-        args = AttrDict(yaml.safe_load(f))
+    mm_config = defaultdict()
+    with open(config_json, 'r', encoding='utf-8') as config_json_f:
+        mm_config = json.load(config_json_f)
 
-    logdir = "logs/exp"
-    for k, v in args.items():
-        if k == 'ref':
-            logdir += f"_{v.split('/')[-1].split('.')[0]}"
-        else:
-            logdir += f"_{v}"
+    ref_data = jnp.array(np.load(mm_config['ref']))
+    ref_len = ref_data.shape[0]
 
-    demo_traj = jnp.array(np.load(args.ref))
-    demo_len = demo_traj.shape[0]
-    args.ep_len = min(args.ep_len, demo_len)
-    args.cycle_len = min(args.get('cycle_len', demo_len), demo_len)
-    args.ep_len_eval = min(args.get('ep_len_eval', demo_len), demo_len)
+    # Set up brax environment parameters
+    if ref_len < mm_config['ep_len']:
+        mm_config['ep_len'] = ref_len
+    if ref_len < mm_config['cycle_len']:
+        mm_config['cycle_len'] = ref_len
+    if ref_len < mm_config['ep_len_eval']:
+        mm_config['ep_len_eval'] = ref_len
 
-    train_env = envs.get_environment(
-        env_name="humanoid_mimic_train",
-        system_config=args.system_config,
-        reference_traj=demo_traj,
-        obs_type=args.get('obs_type', 'timestamp'),
-        cyc_len=args.cycle_len,
-        total_length=args.ep_len_eval,
-        rollout_length=args.ep_len,
-        early_termination=args.get('early_termination', False),
-        demo_replay_mode=args.demo_replay_mode,
-        err_threshold=args.threshold,
-        replay_rate=args.get('replay_rate', 0.05),
-        reward_scaling=args.get('reward_scaling', 1.),
-        rot_weight=args.rot_weight,
-        vel_weight=args.vel_weight,
-        ang_weight=args.ang_weight
+    mm_config['obs_type'] = 'timestamp'
+    mm_config['early_termination'] = False
+    mm_config['replay_rate'] = 0.05
+    mm_config['truncation_length'] = None
+
+    mimic_train_env = envs.get_environment(
+        env_name="mimic_train",
+        system_config=mm_config['system_config'],
+        reference_traj=ref_data,
+        obs_type=mm_config['obs_type'],
+        cyc_len=mm_config['cycle_len'],
+        total_length=mm_config['ep_len_eval'],
+        rollout_length=mm_config['ep_len'],
+        early_termination=mm_config['early_termination'],
+        demo_replay_mode=mm_config['demo_replay_mode'],
+        err_threshold=mm_config['threshold'],
+        replay_rate=mm_config['replay_rate'],
+        reward_scaling=mm_config['reward_scaling'],
+        rot_weight=mm_config['rot_weight'],
+        vel_weight=mm_config['vel_weight'],
+        ang_weight=mm_config['ang_weight']
     )
 
-    eval_env = envs.get_environment(
-        env_name="humanoid_mimic",
-        system_config=args.system_config,
-        reference_traj=demo_traj,
-        obs_type=args.get('obs_type', 'timestamp'),
-        cyc_len=args.cycle_len,
-        rot_weight=args.rot_weight,
-        vel_weight=args.vel_weight,
-        ang_weight=args.ang_weight
+    mimic_env = envs.get_environment(
+        env_name="mimic",
+        system_config=mm_config['system_config'],
+        reference_traj=ref_data,
+        obs_type=mm_config['obs_type'],
+        cyc_len=mm_config['cycle_len'],
+        rot_weight=mm_config['rot_weight'],
+        vel_weight=mm_config['vel_weight'],
+        ang_weight=mm_config['ang_weight']
     )
 
-    with metrics.Writer(logdir) as writer:
-        make_inference_fn, params, _ = dmm.train(
-            seed=args.seed,
-            environment=train_env,
-            eval_environment=eval_env,
-            episode_length=args.ep_len-1,
-            eval_episode_length=args.ep_len_eval-1,
-            num_envs=args.num_envs,
-            num_eval_envs=args.num_eval_envs,
-            learning_rate=args.lr,
-            num_evals=args.max_it+1,
-            max_gradient_norm=args.max_grad_norm,
-            network_factory=functools.partial(apg_networks.make_apg_networks, hidden_layer_sizes=(512, 256)),
-            normalize_observations=args.normalize_observations,
-            save_dir=logdir,
-            progress_fn=writer.write_scalars,
-            use_linear_scheduler=args.use_lr_scheduler,
-            truncation_length=args.get('truncation_length', None),
-        )
+    log_writer = metrics.Writer('logs/')
+    dmm.train(
+        seed=mm_config['seed'],
+        environment=mimic_train_env,
+        eval_environment=mimic_env,
+        episode_length=mm_config['ep_len']-1,
+        eval_episode_length=mm_config['ep_len_eval']-1,
+        num_envs=mm_config['num_envs'],
+        num_eval_envs=mm_config['num_eval_envs'],
+        learning_rate=mm_config['lr'],
+        num_evals=mm_config['max_it']+1,
+        max_gradient_norm=mm_config['max_grad_norm'],
+        network_factory=functools.partial(
+            apg_networks.make_apg_networks, hidden_layer_sizes=(512, 256)),
+        normalize_observations=mm_config['normalize_observations'],
+        save_dir='logs/',
+        progress_fn=log_writer.write_scalars,
+        use_linear_scheduler=mm_config['use_lr_scheduler'],
+        truncation_length=mm_config['truncation_length'],
+    )
 
-
-if __name__ == '__main__':
-    app.run(main)
+if __name__:
+    if len(sys.argv) > 2:
+        print('Usage: python mimic.py <config.json>', file=sys.stderr)
+    elif len(sys.argv) == 1:
+        print('Running default config.json')
+        mimic('config.json')
+    else:
+        mimic(sys.argv[1])

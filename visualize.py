@@ -32,6 +32,7 @@ def show_rollout_traj(rollout_traj, tag):
 
     env = envs.get_environment(
         env_name="mimic",
+        system_config=Humanoid_System_Config,
         reference_traj=rollout_traj,
     )
     components.html(html.render(env.sys, rollout_qp), height=500)

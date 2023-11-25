@@ -1,11 +1,11 @@
 from brax import jumpy as jp
 from brax.envs import env
-from .humanoid_mimic import HumanoidMimic
+from .humanoid_mimic import Mimic
 from .losses import *
 import jax
 
 
-class HumanoidMimicTrain(HumanoidMimic):
+class MimicTrain(Mimic):
     """Trains a humanoid to mimic reference motion."""
 
     def __init__(self, total_length, rollout_length, early_termination, demo_replay_mode, err_threshold, replay_rate,

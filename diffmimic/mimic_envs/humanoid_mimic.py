@@ -7,7 +7,7 @@ from .losses import *
 from diffmimic.utils.rotation6d import quaternion_to_rotation_6d
 
 
-class HumanoidMimic(env.Env):
+class Mimic(env.Env):
     """Trains a humanoid to mimic reference motion."""
 
     def __init__(self, system_config, reference_traj, obs_type='timestamp', cyc_len=None, reward_scaling=1.,

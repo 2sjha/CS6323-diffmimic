@@ -9,8 +9,8 @@ from .losses import *
 class Mimic(env.Env):
     """Trains a humanoid to mimic reference motion."""
 
-    def __init__(self, system_config, reference_traj, obs_type='timestamp', cyc_len=None, reward_scaling=1.,
-                 rot_weight=1., vel_weight=0., ang_weight=0.):
+    def __init__(self, system_config, reference_traj, obs_type, cyc_len, reward_scaling,
+                 rot_weight, vel_weight, ang_weight):
         super().__init__(config=system_config)
         self.reference_qp = deserialize_qp(reference_traj)
         self.reference_len = reference_traj.shape[0]

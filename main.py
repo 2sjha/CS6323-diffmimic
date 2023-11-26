@@ -9,17 +9,14 @@ from brax import envs
 from brax.io import metrics
 from brax.training.agents.apg import networks as apg_networks
 from diffmimic.mimic_envs.humanoid_system_config import Humanoid_System_Config
-from diffmimic.mimic_envs.mimic import Mimic
-from diffmimic.mimic_envs.mimic_train import MimicTrain
+from diffmimic.mimic_envs import setup_brax_envs
 import diffmimic.brax_lib.agent_diffmimic as ag_dm
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Register Brax enviroments
-envs.register_environment('mimic', Mimic)
-envs.register_environment('mimic_train', MimicTrain)
+setup_brax_envs()
 
 def mimic(config_json):
     "Read provided config and set up Mimic training"
@@ -68,6 +65,7 @@ def mimic(config_json):
         reference_traj=ref_data,
         obs_type=mm_config['obs_type'],
         cyc_len=mm_config['cycle_len'],
+        reward_scaling = 1.,
         rot_weight=mm_config['rot_weight'],
         vel_weight=mm_config['vel_weight'],
         ang_weight=mm_config['ang_weight']

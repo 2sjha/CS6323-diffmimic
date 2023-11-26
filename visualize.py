@@ -5,13 +5,10 @@ from brax.io import html
 import streamlit.components.v1 as components
 import streamlit as st
 from diffmimic.utils.io import deserialize_qp, serialize_qp
-from diffmimic.mimic_envs.mimic import Mimic
-from diffmimic.mimic_envs.mimic_train import MimicTrain
+from diffmimic.mimic_envs import setup_brax_envs
 from diffmimic.mimic_envs.humanoid_system_config import Humanoid_System_Config
 
-# Register Brax enviroments
-envs.register_environment('mimic', Mimic)
-envs.register_environment('mimic_train', MimicTrain)
+setup_brax_envs()
 
 st.title('DiffMimic - Visualization')
 with st.expander("Readme"):

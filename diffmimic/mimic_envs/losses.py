@@ -10,7 +10,7 @@ def loss_l2_relpos(qp, ref_qp):
 
 def loss_l2_pos(qp, ref_qp):
     pos, ref_pos = qp.pos[:-1], ref_qp.pos[:-1]
-    pos_loss = (((pos - ref_pos) ** 2).sum(-1)**0.5).mean()
+    pos_loss = (((pos - ref_pos) ** 2).sum(-1) ** 0.5).mean()
     return pos_loss
 
 
@@ -21,7 +21,8 @@ def mse_pos(qp, ref_qp):
 
 
 def mse_rot(qp, ref_qp):
-    rot, ref_rot = quaternion_to_rotation_6d(qp.rot[:-1]), quaternion_to_rotation_6d(ref_qp.rot[:-1])
+    rot = quaternion_to_rotation_6d(qp.rot[:-1])
+    ref_rot = quaternion_to_rotation_6d(ref_qp.rot[:-1])
     rot_loss = ((rot - ref_rot) ** 2).sum(-1).mean()
     return rot_loss
 
@@ -32,7 +33,7 @@ def mse_vel(qp, ref_qp):
     return vel_loss
 
 
-def mse_ang(qp, ref_qp, reduce='mean'):
+def mse_ang(qp, ref_qp):
     ang, ref_ang = qp.ang[:-1], ref_qp.ang[:-1]
     ang_loss = ((ang - ref_ang) ** 2).sum(-1).mean()
     return ang_loss

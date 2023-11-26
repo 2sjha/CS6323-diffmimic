@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from brax import envs
 from brax.io import metrics
 from brax.training.agents.apg import networks as apg_networks
-from diffmimic.mimic_envs.humanoid_system_config import Humanoid_System_Config
+from diffmimic.mimic_envs.humanoid_system_config import HumanoidSystemConfig
 from diffmimic.mimic_envs import setup_brax_envs
 import diffmimic.brax_lib.agent_diffmimic as ag_dm
 
@@ -43,7 +43,7 @@ def mimic(config_json):
 
     mimic_train_env = envs.get_environment(
         env_name="mimic_train",
-        system_config=Humanoid_System_Config,
+        system_config=HumanoidSystemConfig,
         reference_traj=ref_data,
         obs_type=mm_config['obs_type'],
         cyc_len=mm_config['cycle_len'],
@@ -61,7 +61,7 @@ def mimic(config_json):
 
     mimic_env = envs.get_environment(
         env_name="mimic",
-        system_config=Humanoid_System_Config,
+        system_config=HumanoidSystemConfig,
         reference_traj=ref_data,
         obs_type=mm_config['obs_type'],
         cyc_len=mm_config['cycle_len'],

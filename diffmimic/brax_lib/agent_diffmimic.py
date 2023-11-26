@@ -150,15 +150,16 @@ def train(environment: envs.Env,
   loss_grad = jax.grad(loss, has_aux=True)
   logging.info("succesfully setup JAX grad with loss")
 
-  def clip_by_global_norm(updates):
-    g_norm = optax.global_norm(updates)
-    trigger = g_norm < max_gradient_norm
-    return jax.tree_util.tree_map(lambda t: jnp.where(trigger, t, (t / g_norm) * max_gradient_norm), updates)
+  # def clip_by_global_norm(updates):
+  #   g_norm = optax.global_norm(updates)
+  #   trigger = g_norm < max_gradient_norm
+  #   return jax.tree_util.tree_map(lambda t: jnp.where(trigger, t, (t / g_norm) * max_gradient_norm), updates)
 
   def training_epoch(training_state: TrainingState, key: PRNGKey):
     key, key_grad = jax.random.split(key)
     grad_raw, (rewards, obs, metrics) = loss_grad(training_state.policy_params, training_state.normalizer_params, key_grad)
-    grad = clip_by_global_norm(grad_raw)
+    # grad = clip_by_global_norm(grad_raw)
+    grad = jax.tree_util.tree_map(lambda t: jnp.where(optax.global_norm(grad_raw)<max_gradient_norm, t, (t / optax.global_norm(grad_raw)) * max_gradient_norm), grad_raw)
     grad = jax.lax.pmean(grad, axis_name='i')
     grad_raw = jax.lax.pmean(grad_raw, axis_name='i')
     params_update, optimizer_state = optimizer.update(grad, training_state.optimizer_state)
@@ -171,10 +172,7 @@ def train(environment: envs.Env,
         'loss': -1 * rewards,
         **metrics
     }
-    return TrainingState(
-        optimizer_state=optimizer_state,
-        normalizer_params=normalizer_params,
-        policy_params=policy_params), metrics
+    return TrainingState(optimizer_state=optimizer_state, normalizer_params=normalizer_params, policy_params=policy_params), metrics
 
   training_epoch = jax.pmap(training_epoch, axis_name='i')
 
@@ -244,9 +242,9 @@ def train(environment: envs.Env,
     logging.info('currently evaluating iteration %s %s', index, time.time() - xt)
 
     # optimization
-    # epoch_key, local_key = jax.random.split(local_key)
-    # epoch_keys = jax.random.split(epoch_key, jax.local_device_count())
-    # (training_state, training_metrics) = training_epoch_with_timing(training_state, epoch_keys)
+    epoch_key, local_key = jax.random.split(local_key)
+    epoch_keys = jax.random.split(epoch_key, jax.local_device_count())
+    (training_state, training_metrics) = training_epoch_with_timing(training_state, epoch_keys)
 
     if jax.process_index() == 0:
       # Run evals.

@@ -15,20 +15,13 @@ streamlit.subheader('Vedant Sapra (vks220000)')
 def main():
     uploaded_file = streamlit.file_uploader("Evaluated Model Trajectory")
     if uploaded_file is not None:
-        # show_rollout_traj(np.load(uploaded_file), 'DU')
         t = np.load(uploaded_file)
-        print("t.shape=", t.shape, " t.shape[0]=", t.shape[0], " t.shape[1]=", t.shape[1])
-        seed = streamlit.slider(f'Random seed ({"DU"})', 0, t.shape[1] - 1, 0)
-        t = t[:, seed]
+        t = t[:, 0]
 
         rollout_qp = [deserialize_qp(t[i]) for i in range(t.shape[0])]
         t = serialize_qp(deserialize_qp(t))
 
-        env = envs.get_environment(
-            env_name="humanoid_mimic",
-            system_config="humanoid",
-            reference_traj=t,
-        )
+        env = envs.get_environment(env_name="humanoid_mimic",system_config="humanoid",reference_traj=t,)
         components.html(html.render(env.sys, rollout_qp), height=500)
 
 if __name__ == '__main__':

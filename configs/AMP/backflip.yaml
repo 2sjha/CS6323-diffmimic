@@ -5,12 +5,12 @@ max_it: 300 #1000
 max_grad_norm: 0.4
 seed: 0
 system_config: humanoid
-demo_replay_mode: threshold
+demo_replay_mode: none # threshold. Trying now with none for evaluating a vanilla version without demo replay
 threshold: 0.4
 normalize_observations: True
-cycle_len: 54 ## is this number of frames in the final export
+cycle_len: 54
 ep_len: 30
-ep_len_eval: 54
+ep_len_eval: 54 ## this is number of frames in the final export
 use_lr_scheduler: True
 reward_scaling: 0.02
 rot_weight: 0.5

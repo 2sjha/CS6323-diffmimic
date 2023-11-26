@@ -32,7 +32,7 @@ class HumanoidMimicTrain(HumanoidMimic):
             state.metrics.update(replay_key=rng)
         return state
 
-    def step(self, state: env.State, action: jp.ndarray) -> env.State:
+    def v(self, state: env.State, action: jp.ndarray) -> env.State:
         state = super(HumanoidMimicTrain, self).step(state, action)
         if self.early_termination:
             state = state.replace(done=state.metrics['fall'])

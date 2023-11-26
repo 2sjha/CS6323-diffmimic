@@ -132,13 +132,17 @@ def train(environment: envs.Env,
     env_state, key = carry
     key, key_sample = jax.random.split(key)
     actions = policy(env_state.obs, key_sample)[0]
-    nstate = env.step(env_state, actions)
+    # nstate = env.step(env_state, actions)
     if truncation_length is not None:
-      nstate = jax.lax.cond(
+      nstate_with_tl = jax.lax.cond(
           jnp.mod(step_index + 1, truncation_length) == 0.,
-          jax.lax.stop_gradient, lambda x: x, nstate)
+          jax.lax.stop_gradient, lambda x: x, nstate_with_tl)
+      return (nstate_with_tl, key), (nstate_with_tl.reward, env_state.obs, nstate_with_tl.metrics)
+    else:
+      nstate_no_tl = env.step(env_state, actions)
+      return (nstate_no_tl, key), (nstate_no_tl.reward, env_state.obs, nstate_no_tl.metrics)
 
-    return (nstate, key), (nstate.reward, env_state.obs, nstate.metrics)
+    # return (nstate, key), (nstate.reward, env_state.obs, nstate.metrics)
 
   def loss(policy_params, normalizer_params, key):
     key_reset, key_scan = jax.random.split(key)

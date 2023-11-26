@@ -31,6 +31,12 @@ def show_rollout_traj(rollout_traj, tag):
         env_name="mimic",
         system_config=Humanoid_System_Config,
         reference_traj=rollout_traj,
+        obs_type='timestamp',
+        cyc_len=None,
+        reward_scaling=1.,
+        rot_weight=1.,
+        vel_weight=0.,
+        ang_weight=0.
     )
     components.html(html.render(env.sys, rollout_qp), height=500)
 

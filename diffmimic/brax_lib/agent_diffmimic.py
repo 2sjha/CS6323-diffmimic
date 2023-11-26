@@ -99,7 +99,7 @@ def train(environment: envs.Env,
   if truncation_length is not None:
     assert truncation_length > 0
 
-  num_evals_after_init = max(num_evals - 1, 1)
+  # num_evals_after_init = max(num_evals - 1, 1)
 
 #   assert num_envs % device_count == 0
   assert num_envs % (jax.process_count() * jax.local_device_count()) == 0
@@ -123,9 +123,9 @@ def train(environment: envs.Env,
 #       optimizer = optax.adam(learning_rate=learning_rate)
   
   # since the linear scheduler needs to used for backflip
-  lr_scheduler = optax.linear_schedule(init_value=learning_rate, end_value=1e-5, transition_steps=num_evals_after_init)
+  lr_scheduler = optax.linear_schedule(init_value=0.0003, end_value=1e-5, transition_steps=num_evals-1)
   optimizer = optax.adam(learning_rate=lr_scheduler)
-  logging.info("succesfully setup the lr_scheduler and optimizer")
+  logging.info("succesfully initialized the lr_scheduler and optimizer")
 
   def env_step(carry: Tuple[envs.State, PRNGKey], step_index: int,
                policy: types.Policy):
@@ -142,13 +142,9 @@ def train(environment: envs.Env,
 
   def loss(policy_params, normalizer_params, key):
     key_reset, key_scan = jax.random.split(key)
-    env_state = env.reset(
-        jax.random.split(key_reset, num_envs // jax.process_count()))
-    f = functools.partial(
-        env_step, policy=make_policy((normalizer_params, policy_params)))
-    (rewards,
-     obs, metrics) = jax.lax.scan(f, (env_state, key_scan),
-                         (jnp.array(range(episode_length // action_repeat))))[1]
+    env_state = env.reset(jax.random.split(key_reset, num_envs // jax.process_count()))
+    f = functools.partial(env_step, policy=make_policy((normalizer_params, policy_params)))
+    (rewards, obs, metrics) = jax.lax.scan(f, (env_state, key_scan), (jnp.array(range(episode_length // action_repeat))))[1]
     return -jnp.mean(rewards), (rewards, obs, metrics)
 
   loss_grad = jax.grad(loss, has_aux=True)
@@ -157,24 +153,18 @@ def train(environment: envs.Env,
   def clip_by_global_norm(updates):
     g_norm = optax.global_norm(updates)
     trigger = g_norm < max_gradient_norm
-    return jax.tree_util.tree_map(
-        lambda t: jnp.where(trigger, t, (t / g_norm) * max_gradient_norm),
-        updates)
+    return jax.tree_util.tree_map(lambda t: jnp.where(trigger, t, (t / g_norm) * max_gradient_norm), updates)
 
   def training_epoch(training_state: TrainingState, key: PRNGKey):
     key, key_grad = jax.random.split(key)
-    grad_raw, (rewards, obs, metrics) = loss_grad(training_state.policy_params,
-                          training_state.normalizer_params, key_grad)
+    grad_raw, (rewards, obs, metrics) = loss_grad(training_state.policy_params, training_state.normalizer_params, key_grad)
     grad = clip_by_global_norm(grad_raw)
     grad = jax.lax.pmean(grad, axis_name='i')
     grad_raw = jax.lax.pmean(grad_raw, axis_name='i')
-    params_update, optimizer_state = optimizer.update(
-        grad, training_state.optimizer_state)
-    policy_params = optax.apply_updates(training_state.policy_params,
-                                        params_update)
+    params_update, optimizer_state = optimizer.update(grad, training_state.optimizer_state)
+    policy_params = optax.apply_updates(training_state.policy_params, params_update)
 
-    normalizer_params = running_statistics.update(
-        training_state.normalizer_params, obs, pmap_axis_name='i')
+    normalizer_params = running_statistics.update(training_state.normalizer_params, obs, pmap_axis_name='i')
     metrics = {
         'grad_norm': optax.global_norm(grad_raw),
         'params_norm': optax.global_norm(policy_params),
@@ -191,22 +181,17 @@ def train(environment: envs.Env,
   training_walltime = 0
 
   # Note that this is NOT a pure jittable method.
-  def training_epoch_with_timing(training_state: TrainingState,
-                                 key: PRNGKey) -> Tuple[TrainingState, Metrics]:
+  def training_epoch_with_timing(training_state: TrainingState, key: PRNGKey) -> Tuple[TrainingState, Metrics]:
     nonlocal training_walltime
     t = time.time()
     (training_state, metrics) = training_epoch(training_state, key)
     metrics = jax.tree_util.tree_map(jnp.mean, metrics)
     jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
 
-    epoch_training_time = time.time() - t
-    training_walltime += epoch_training_time
-    sps = (episode_length * num_envs) / epoch_training_time
-    metrics = {
-        'training/sps': sps,
-        'training/walltime': training_walltime,
-        **{f'training/{name}': value for name, value in metrics.items()}
-    }
+    # epoch_training_time = time.time() - t
+    training_walltime += (time.time() - t)
+    sps = (episode_length * num_envs) / (time.time() - t)
+    metrics = {'training/sps': sps, 'training/walltime': training_walltime, **{f'training/{name}': value for name, value in metrics.items()}}
     return training_state, metrics
 
   key = jax.random.PRNGKey(seed)
@@ -223,8 +208,7 @@ def train(environment: envs.Env,
   training_state = TrainingState(
       optimizer_state=optimizer.init(policy_params),
       policy_params=policy_params,
-      normalizer_params=running_statistics.init_state(
-          specs.Array((env.observation_size,), jnp.float32)))
+      normalizer_params=running_statistics.init_state(specs.Array((env.observation_size,), jnp.float32)))
   training_state = jax.device_put_replicated(training_state,jax.local_devices()[:jax.local_device_count()])
 
   logging.info("Training state has been initialized")
@@ -250,33 +234,31 @@ def train(environment: envs.Env,
     # metrics, _ = evaluator.run_evaluation(
     #     _unpmap((training_state.normalizer_params, training_state.policy_params)),
     #     training_metrics={})
-    metrics, _ = evaluator.run_evaluation(
-      training_state.get_params(),
-      training_metrics={}
-    )
+    metrics, _ = evaluator.run_evaluation(training_state.get_params(),training_metrics={})
     logging.info("succesfully run the jax tree map function")
     best_pose_error = min(metrics['eval/episode_pose_error'], best_pose_error)
     metrics['eval/best_pose_error'] = best_pose_error
     progress_fn(0, metrics)
 
-  for it in range(num_evals_after_init):
-    logging.info('starting iteration %s %s', it, time.time() - xt)
+  for index in range(num_evals-1):
+    logging.info('currently evaluating iteration %s %s', index, time.time() - xt)
 
     # optimization
-    epoch_key, local_key = jax.random.split(local_key)
-    epoch_keys = jax.random.split(epoch_key, jax.local_device_count())
-    (training_state,
-     training_metrics) = training_epoch_with_timing(training_state, epoch_keys)
+    # epoch_key, local_key = jax.random.split(local_key)
+    # epoch_keys = jax.random.split(epoch_key, jax.local_device_count())
+    # (training_state, training_metrics) = training_epoch_with_timing(training_state, epoch_keys)
 
     if jax.process_index() == 0:
       # Run evals.
-      metrics, qp_list = evaluator.run_evaluation(
-        training_state.get_params(),
-        training_metrics
-      )
-      best_pose_error = min(metrics['eval/episode_pose_error'], best_pose_error)
-      metrics['eval/best_pose_error'] = best_pose_error
-      progress_fn(it + 1, metrics)
+      metrics, qp_list = evaluator.run_evaluation(training_state.get_params(),training_metrics)
+      # best_pose_error = min(metrics['eval/episode_pose_error'], best_pose_error)
+      # metrics['eval/best_pose_error'] = best_pose_error
+      
+      metrics['eval/best_pose_error'] = min(metrics['eval/episode_pose_error'], best_pose_error)
+      best_pose_error = metrics['eval/best_pose_error']
+      episode_pose_error = metrics['eval/episode_pose_error']
+
+      progress_fn(1+index, metrics)
     #   if save_dir is not None:
     #       params = _unpmap(
     #           (training_state.normalizer_params, training_state.policy_params))
@@ -290,7 +272,7 @@ def train(environment: envs.Env,
     #             jnp.save(f, eval_traj)
       if best_pose_error == metrics['eval/episode_pose_error']:
         params = training_state.get_params()
-        model.save_params(save_dir + '/params_best.pkl', params)
+        # model.save_params(save_dir + '/params_best.pkl', params)
         with open(save_dir+'/best_pose_error_trajectory.npy', 'wb') as file:
           jnp.save(file, serialize_qp(qp_list))
 
@@ -299,6 +281,6 @@ def train(environment: envs.Env,
   # If there was no mistakes the training_state should still be identical on all
   # devices.
   pmap.assert_is_replicated(training_state)
-  params = training_state.get_params()
+  # params = training_state.get_params()
   pmap.synchronize_hosts()
-  return (make_policy, params, metrics)
+  return (make_policy, training_state.get_params(), metrics)

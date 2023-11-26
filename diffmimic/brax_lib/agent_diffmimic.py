@@ -250,7 +250,7 @@ def train(environment: envs.Env,
 
     if jax.process_index() == 0:
       # Run evals.
-      metrics, qp_list = evaluator.run_evaluation(training_state.get_params(),training_metrics)
+      metrics, qp_list = evaluator.run_evaluation(training_state.get_params(),training_metrics={})
       # best_pose_error = min(metrics['eval/episode_pose_error'], best_pose_error)
       # metrics['eval/best_pose_error'] = best_pose_error
       

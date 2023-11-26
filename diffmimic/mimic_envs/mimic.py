@@ -16,7 +16,7 @@ class Mimic(env.Env):
         self.reference_len = reference_traj.shape[0]
         self.reward_scaling = reward_scaling
         self.obs_type = obs_type
-        self.cycle_len = cyc_len if cyc_len is not None else self.reference_len
+        self.cycle_len = cyc_len
         self.rot_weight = rot_weight
         self.vel_weight = vel_weight
         self.ang_weight = ang_weight

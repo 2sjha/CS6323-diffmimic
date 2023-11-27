@@ -5,11 +5,7 @@ import streamlit.components.v1 as components
 import streamlit as streamlit
 from diffmimic.utils.io import deserialize_qp, serialize_qp
 from diffmimic.mimic_envs import setup_brax_envs
-<<<<<<< HEAD
-from diffmimic.mimic_envs.humanoid_system_config import Humanoid_System_Config
-=======
 from diffmimic.mimic_envs.humanoid_system_config import HumanoidSystemConfig
->>>>>>> 0dae731029c4f40dabd97390721179ba829054a0
 
 setup_brax_envs()
 
@@ -26,9 +22,6 @@ def main():
         rollout_qp = [deserialize_qp(t[i]) for i in range(t.shape[0])]
         t = serialize_qp(deserialize_qp(t))
 
-<<<<<<< HEAD
-        env = envs.get_environment(env_name="mimic",system_config=Humanoid_System_Config,reference_traj=t,)
-=======
         env = envs.get_environment(
             env_name="mimic",
             system_config=HumanoidSystemConfig,
@@ -40,7 +33,6 @@ def main():
             vel_weight=0.,
             ang_weight=0.
         )
->>>>>>> 0dae731029c4f40dabd97390721179ba829054a0
         components.html(html.render(env.sys, rollout_qp), height=500)
 
 if __name__ == '__main__':

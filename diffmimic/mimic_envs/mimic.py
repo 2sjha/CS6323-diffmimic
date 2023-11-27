@@ -21,7 +21,7 @@ class Mimic(env.Env):
         self.vel_weight = vel_weight
         self.ang_weight = ang_weight
 
-    def reset(self, rng: jp.ndarray) -> env.State:
+    def reset(self, _rng: jp.ndarray) -> env.State:
         """Resets the environment to an initial state."""
         reward, done, zero = jp.zeros(3)
         qp = self._get_ref_state(zero)
@@ -33,7 +33,7 @@ class Mimic(env.Env):
     def step(self, state: env.State, action: jp.ndarray) -> env.State:
         """Run one timestep of the environment's dynamics."""
         step_index = state.metrics['step_index'] + 1
-        qp, info = self.sys.step(state.qp, action)
+        qp, _info = self.sys.step(state.qp, action)
         obs = self._get_obs(qp, step_index)
         ref_qp = self._get_ref_state(step_idx=step_index)
         reward = -1 * (mse_pos(qp, ref_qp) +
@@ -57,19 +57,9 @@ class Mimic(env.Env):
         rot_6d = quaternion_to_rotation_6d(rot)
         rel_pos = (pos - pos[0])[1:]
 
-        if self.obs_type == 'timestamp':
-            phi = (step_index % self.cycle_len) / self.cycle_len
-            obs = jp.concatenate([rel_pos.reshape(-1), rot_6d.reshape(-1), vel.reshape(-1), ang.reshape(-1),
-                                  phi[None]], axis=-1)
-        elif self.obs_type == 'target_state':
-            target_qp = self._get_ref_state(step_idx=step_index + 1)
-            target_pos, target_rot, target_vel, target_ang = target_qp.pos[:-1], target_qp.rot[:-1], target_qp.vel[:-1], target_qp.ang[:-1]
-            target_rot_6d = quaternion_to_rotation_6d(target_rot)
-            obs = jp.concatenate([pos.reshape(-1), rot.reshape(-1), vel.reshape(-1), ang.reshape(-1),
-                                  target_pos.reshape(-1), target_rot_6d.reshape(-1), target_vel.reshape(-1), target_ang.reshape(-1)
-                                  ], axis=-1)
-        else:
-            raise NotImplementedError
+        phi = (step_index % self.cycle_len) / self.cycle_len
+        obs = jp.concatenate([rel_pos.reshape(-1), rot_6d.reshape(-1), vel.reshape(-1),
+                                ang.reshape(-1), phi[None]], axis=-1)
         return obs
 
     def _get_ref_state(self, step_idx) -> brax.QP:

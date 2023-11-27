@@ -2,7 +2,12 @@ import jax.numpy as jnp
 
 
 def quaternion_to_matrix(quaternions):
-    r, i, j, k = quaternions[..., 0], quaternions[..., 1], quaternions[..., 2], quaternions[..., 3]
+    r, i, j, k = (
+        quaternions[..., 0],
+        quaternions[..., 1],
+        quaternions[..., 2],
+        quaternions[..., 3],
+    )
     two_s = 2.0 / (quaternions * quaternions).sum(-1)
 
     o = jnp.stack(

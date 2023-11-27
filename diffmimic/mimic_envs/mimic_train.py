@@ -1,11 +1,11 @@
 from brax import jumpy as jp
 from brax.envs import env
-from .humanoid_mimic import HumanoidMimic
+from .mimic import Mimic
 from .losses import *
 import jax
 
 
-class HumanoidMimicTrain(HumanoidMimic):
+class MimicTrain(Mimic):
     """Trains a humanoid to mimic reference motion."""
 
     def __init__(self, total_length, rollout_length, early_termination, demo_replay_mode, err_threshold, replay_rate,
@@ -32,8 +32,8 @@ class HumanoidMimicTrain(HumanoidMimic):
             state.metrics.update(replay_key=rng)
         return state
 
-    def v(self, state: env.State, action: jp.ndarray) -> env.State:
-        state = super(HumanoidMimicTrain, self).step(state, action)
+    def step(self, state: env.State, action: jp.ndarray) -> env.State:
+        state = super(MimicTrain, self).step(state, action)
         if self.early_termination:
             state = state.replace(done=state.metrics['fall'])
         if self.demo_replay_mode != 'none':

@@ -1,35 +1,9 @@
 <div align="center">
 
-<h1>DiffMimic: <br> Efficient Motion Mimicking with Differentiable Physics</h1>
-
-<div>
-Jiawei Ren<sup>*</sup>&emsp;Cunjun Yu<sup>*</sup>&emsp;Siwei Chen&emsp;Xiao Ma&emsp;Liang Pan</a>&emsp;Ziwei Liu<sup>&dagger;</sup>
-</div>
-<div>
-    S-Lab, Nanyang Technological University&emsp; 
-    National University of Singapore &emsp;<br>
-    <sup>*</sup>equal contribution <br>
-    <sup>&dagger;</sup>corresponding author 
-</div>
-
-<div>
-   <strong>ICLR 2023</strong>
-</div>
-<div>
-<img src="asset/teaser.gif" width="80%"/>
-</div>
+<h1>CS6323 - DiffMimic: <br> Efficient Motion Mimicking with Differentiable Physics</h1>
 
 ---
 
-<h4 align="center">
-  <a href="https://diffmimic.github.io/" target='_blank'>[Project Page]</a> •
-  <a href="https://openreview.net/forum?id=06mk-epSwZ" target='_blank'>[Paper]</a> •
-<a href="https://diffmimic-demo-main-g7h0i8.streamlit.app/" target='_blank'>[Demo]</a> •
-<a href="https://youtu.be/B0unbsvGsLc" target='_blank'>[Video]</a> 
-
-</h4>
-
-</div>
 
 ## About
 We implement DiffMimic with [Brax](https://github.com/google/brax): 
@@ -39,11 +13,6 @@ We implement DiffMimic with [Brax](https://github.com/google/brax):
 
 An environment `mimic_env` is implemented for training and benchmarking. `mimic_env` now includes the following characters:
 - [HUMANOID](diffmimic/mimic_envs/system_configs/HUMANOID.py): [AMP](https://github.com/nv-tlabs/ASE/blob/main/ase/data/assets/mjcf/amp_humanoid.xml)-formatted humanoid, used for acrobatics skills.
-- [SMPL](diffmimic/mimic_envs/system_configs/SMPL.py): [SMPL](https://smpl.is.tue.mpg.de/)-formatted humanoid, used for mocap data.
-- [SWORDSHIELD](diffmimic/mimic_envs/system_configs/SWORDSHIELD.py): [ASE](https://github.com/nv-tlabs/ASE/blob/main/ase/data/assets/mjcf/amp_humanoid_sword_shield.xml)-formatted humanoid, used for REALLUSION sword-shield motion.
-
-More characters are on the way.
-
 
 ## Installation
 ```
@@ -57,7 +26,7 @@ pip install -r requirements.txt
 
 ## Get Started
 ```shell
-python mimic.py --config configs/AMP/backflip.yaml
+python main.py
 ```
 
 ## Visualize
@@ -67,7 +36,6 @@ streamlit run visualize.py
 
 
 ## Citation
-If you find our work useful for your research, please consider citing the paper:
 ```
 @inproceedings{ren2023diffmimic,
   author    = {Ren, Jiawei and Yu, Cunjun and Chen, Siwei and Ma, Xiao and Pan, Liang and Liu, Ziwei},

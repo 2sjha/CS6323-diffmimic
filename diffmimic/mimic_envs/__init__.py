@@ -1,9 +1,8 @@
 from brax import envs
-from .humanoid_mimic import HumanoidMimic
-from .humanoid_mimic_train import HumanoidMimicTrain
+from .mimic import Mimic
+from .mimic_train import MimicTrain
 from . import pd_controller
 
-
-def register_mimic_env():
-    envs.register_environment('humanoid_mimic', HumanoidMimic)
-    envs.register_environment('humanoid_mimic_train', HumanoidMimicTrain)
+def setup_brax_envs():
+    envs.register_environment('mimic', Mimic)
+    envs.register_environment('mimic_train', MimicTrain)

@@ -1,6 +1,6 @@
 {
-  "num_envs": 300,
-  "num_eval_envs": 32,
+  "num_envs": 150,
+  "num_eval_envs": 16,
   "lr": 0.0003,
   "max_it": 300,
   "max_grad_norm": 0.4,
